@@ -22,13 +22,6 @@ variable "policyfile" {
   default     = "./Policyfile.rb"
 }
 
-variable "policyfile_archive" {
-  type        = string
-  description = "Relative path to your policyfile archive (.tgz)"
-  default     = ""
-}
-
-
 variable "host" {
   type        = string
   description = "Address of host (for ssh purposes)"

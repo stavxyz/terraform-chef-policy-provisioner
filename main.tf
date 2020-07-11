@@ -10,12 +10,11 @@ locals {
   # The connection block docs say that
   # the private key takes precendence over
   # the password if the private key is provided
-  private_key         = var.ssh_password != "" ? false : file(pathexpand(var.ssh_key))
-  ssh_user            = var.ssh_user
-  ssh_port            = var.ssh_port
-  ssh_password        = var.ssh_password != "" ? var.ssh_password : false
+  private_key  = var.ssh_password != "" ? false : file(pathexpand(var.ssh_key))
+  ssh_user     = var.ssh_user
+  ssh_port     = var.ssh_port
+  ssh_password = var.ssh_password != "" ? var.ssh_password : false
   chef_client_version = var.chef_client_version
-  policyfile_archive  = var.policyfile_archive != "" ? pathexpand(var.policyfile_archive) : format("%s/", local.local_build_dir)
 }
 
 resource "null_resource" "chef_install" {
@@ -35,9 +34,6 @@ resource "null_resource" "chef_install" {
       local.local_build_dir
     )
   }
-
-  # this entire block does not need to run if the archive is provided
-  count = var.policyfile_archive == "" ? 1 : 0
 
   triggers = {
     run = var.skip == true ? 0 : timestamp()
@@ -64,7 +60,7 @@ resource "null_resource" "deliver_archive" {
 
   provisioner "file" {
     # copies contents of the .chefexport directory
-    source      = local.policyfile_archive
+    source      = format("%s/", local.local_build_dir)
     destination = format("%s/", local.target_export_dir)
 
     connection {
@@ -74,6 +70,9 @@ resource "null_resource" "deliver_archive" {
       private_key = local.private_key
       host        = local.host
     }
+
+
+
   }
 
   triggers = {
@@ -123,9 +122,8 @@ resource "null_resource" "chef_client_run" {
 
     inline = [
       format(
-        "curl --location --time-cond %s/installchef.sh --output %s/installchef.sh https://omnitruck.chef.io/install.sh",
-        local.target_install_dir,
-        local.target_install_dir,
+        "curl --location --output %s/installchef.sh https://omnitruck.chef.io/install.sh",
+        local.target_install_dir
       ),
       format(
         "chmod +x %s/installchef.sh",
