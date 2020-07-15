@@ -10,6 +10,25 @@ variable "chef_client_version" {
   default     = "16.2"
 }
 
+variable "chef_client_log_level" {
+  type        = string
+  description = "Log level for chef-client. [auto, trace, debug, info, warn, error, fatal]"
+  default     = "info"
+}
+
+variable "chef_client_logfile" {
+  type        = string
+  description = "Log file location"
+  default     = "chef-client.log"
+}
+
+variable "attributes_file" {
+  type        = string
+  description = "Path to file containing chef attributes."
+  default     = ""
+}
+
+
 variable "install_dir" {
   type        = string
   description = "The directory to untar and install policyfile in on the target system."
@@ -36,7 +55,7 @@ variable "host" {
 
 variable "ssh_key" {
   type        = string
-  description = "Local path to your private ssh key."
+  description = "Private key content, or local path to your private ssh key."
   default     = "~/.ssh/id_rsa"
 }
 
@@ -63,5 +82,3 @@ variable "skip" {
   description = "To skip chef provisiong, set this to true"
   default     = false
 }
-
-
