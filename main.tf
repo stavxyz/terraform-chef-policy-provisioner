@@ -25,10 +25,12 @@ locals {
 
   #_archive_selector         = element(sort(fileset(local._archive_supplied_dirname, format("{do_hypervisor}**.tgz", local.policy_name))), 0)
 
-  chef_client_log_level = var.chef_client_log_level
-  chef_client_logfile   = var.chef_client_logfile
-  attributes_file       = pathexpand(var.attributes_file)
-  json_attributes       = var.attributes_file != "" ? format("--json-attributes %s", local.attributes_file) : ""
+  chef_client_log_level  = var.chef_client_log_level
+  chef_client_logfile    = var.chef_client_logfile
+  data_bags              = pathexpand(var.data_bags)
+  attributes_file_source = pathexpand(var.attributes_file)
+  attributes_file        = format("%s", basename(trimsuffix(local.attributes_file_source, "/")))
+  json_attributes        = var.attributes_file != "" ? format("--json-attributes %s", local.attributes_file) : ""
 }
 
 resource "null_resource" "chef_install" {
@@ -120,6 +122,7 @@ resource "null_resource" "deliver_archive" {
     }
   }
   # only deliver the archive if the archive has been updated
+  count = var.skip_archive_push || (var.skip == true) ? 0 : 1
   triggers = {
     run = var.skip == true ? 0 : timestamp()
   }
@@ -155,8 +158,8 @@ resource "null_resource" "untar_archive" {
 resource "null_resource" "deliver_attributes_file" {
   depends_on = [null_resource.untar_archive]
   provisioner "file" {
-    source      = trimsuffix(local.attributes_file, "/")
-    destination = format("%s/%s", local.target_src_dir, basename(trimsuffix(local.attributes_file, "/")))
+    source      = trimsuffix(local.attributes_file_source, "/")
+    destination = format("%s/%s", local.target_src_dir, local.attributes_file)
 
     connection {
       type        = "ssh"
@@ -167,12 +170,38 @@ resource "null_resource" "deliver_attributes_file" {
     }
   }
   # only deliver the attributes file if the file has been changed
-  count = (local.attributes_file == "") || (var.skip == true) ? 0 : 1
+  count = (var.attributes_file == "") || (var.skip == true) ? 0 : 1
   triggers = {
-    attributes_file_hash = filesha256(local.attributes_file)
+    attributes_file_hash = filesha256(local.attributes_file_source)
     run                  = var.skip == true ? 0 : timestamp()
   }
 }
+
+resource "null_resource" "deliver_data_bags" {
+  depends_on = [null_resource.untar_archive]
+  provisioner "file" {
+    # no trailing slash ensured so that the dir name comes with
+    source      = trimsuffix(local.data_bags, "/")
+    destination = format("%s", local.target_src_dir)
+
+    connection {
+      type        = "ssh"
+      user        = local.ssh_user
+      password    = local.ssh_password
+      private_key = local.private_key
+      host        = local.host
+    }
+  }
+  # TODO: in the future, zip the data bags, check hash, send archive
+  # only deliver the data_bags if they have been changed
+  count = (local.data_bags == "") || (var.skip == true) ? 0 : 1
+  triggers = {
+    # TODO: this doesnt work on a directory
+    #data_bags_hash = filesha256(local.data_bags)
+    run = var.skip == true ? 0 : timestamp()
+  }
+}
+
 
 
 resource "null_resource" "ensure_chef_client" {
@@ -216,7 +245,7 @@ resource "null_resource" "ensure_chef_client" {
 }
 
 resource "null_resource" "chef_client_run" {
-  depends_on = [null_resource.ensure_chef_client, null_resource.deliver_attributes_file]
+  depends_on = [null_resource.ensure_chef_client, null_resource.deliver_attributes_file, null_resource.deliver_data_bags]
   provisioner "remote-exec" {
     connection {
       type        = "ssh"

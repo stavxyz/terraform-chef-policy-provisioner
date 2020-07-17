@@ -28,6 +28,11 @@ variable "attributes_file" {
   default     = ""
 }
 
+variable "data_bags" {
+  type        = string
+  description = "Relative path to your data_bags directory."
+  default     = ""
+}
 
 variable "install_dir" {
   type        = string
@@ -43,7 +48,7 @@ variable "policyfile" {
 
 variable "policyfile_archive" {
   type        = string
-  description = "Relative path to your policyfile archive (.tgz)"
+  description = "Relative path to your policyfile archive (.tgz), or to a directory containg your archives. In the latter case, the most recent archive with matching policy group will be used."
   default     = ""
 }
 
@@ -78,7 +83,19 @@ variable "ssh_password" {
 }
 
 variable "skip" {
-  type        = string
+  type        = bool
   description = "To skip chef provisiong, set this to true"
+  default     = false
+}
+
+variable "skip_archive_push" {
+  type        = bool
+  description = "To force skip pushing the archive, set this to true. This is a temporary fix until we have code in place to determine whether the archive has changed since last push/apply."
+  default     = false
+}
+
+variable "skip_data_bags_push" {
+  type        = bool
+  description = "To force skip pushing the data_bags, set this to true. This is a temporary fix until we have code in place to determine whether the archive has changed since last push/apply."
   default     = false
 }
