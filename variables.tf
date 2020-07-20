@@ -10,6 +10,30 @@ variable "chef_client_version" {
   default     = "16.2"
 }
 
+variable "chef_client_log_level" {
+  type        = string
+  description = "Log level for chef-client. [auto, trace, debug, info, warn, error, fatal]"
+  default     = "info"
+}
+
+variable "chef_client_logfile" {
+  type        = string
+  description = "Log file location"
+  default     = "chef-client.log"
+}
+
+variable "attributes_file" {
+  type        = string
+  description = "Path to file containing chef attributes."
+  default     = ""
+}
+
+variable "data_bags" {
+  type        = string
+  description = "Relative path to your data_bags directory."
+  default     = ""
+}
+
 variable "install_dir" {
   type        = string
   description = "The directory to untar and install policyfile in on the target system."
@@ -24,7 +48,7 @@ variable "policyfile" {
 
 variable "policyfile_archive" {
   type        = string
-  description = "Relative path to your policyfile archive (.tgz)"
+  description = "Relative path to your policyfile archive (.tgz), or to a directory containg your archives. In the latter case, the most recent archive with matching policy group will be used."
   default     = ""
 }
 
@@ -36,7 +60,7 @@ variable "host" {
 
 variable "ssh_key" {
   type        = string
-  description = "Local path to your private ssh key."
+  description = "Private key content, or local path to your private ssh key."
   default     = "~/.ssh/id_rsa"
 }
 
@@ -59,9 +83,19 @@ variable "ssh_password" {
 }
 
 variable "skip" {
-  type        = string
+  type        = bool
   description = "To skip chef provisiong, set this to true"
   default     = false
 }
 
+variable "skip_archive_push" {
+  type        = bool
+  description = "To force skip pushing the archive, set this to true. This is a temporary fix until we have code in place to determine whether the archive has changed since last push/apply."
+  default     = false
+}
 
+variable "skip_data_bags_push" {
+  type        = bool
+  description = "To force skip pushing the data_bags, set this to true. This is a temporary fix until we have code in place to determine whether the archive has changed since last push/apply."
+  default     = false
+}
