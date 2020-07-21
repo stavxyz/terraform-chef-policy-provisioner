@@ -1,45 +1,44 @@
 locals {
   # defaults to /var/chef/policy/<policy_name>
-  policy_name        = var.policy_name
-  target_install_dir = format("%s/%s", pathexpand(var.install_dir), var.policy_name)
-  target_export_dir  = format("%s/export", local.target_install_dir)
-  target_src_dir     = format("%s/src", local.target_install_dir)
-  policyfile         = pathexpand(var.policyfile)
-  policyfile_lock    = format("%s/Policyfile.lock.json", dirname(pathexpand(var.policyfile)))
-  local_build_dir    = format("%s/.chefexport", dirname(pathexpand(var.policyfile)))
-  host               = var.host
+  policy_name             = var.policy_name
+  target_install_dir      = format("%s/%s", pathexpand(var.install_dir), var.policy_name)
+  target_export_dir       = format("%s/export", local.target_install_dir)
+  target_src_dir          = format("%s/src", local.target_install_dir)
+  policyfile              = pathexpand(var.policyfile)
+  policyfile_lock         = format("%s/Policyfile.lock.json", dirname(pathexpand(var.policyfile)))
+  _chef_update_or_install = fileexists(local.policyfile_lock) ? "update" : "install"
+  local_build_dir         = format("%s/.chefexport", dirname(pathexpand(var.policyfile)))
+  host                    = var.host
   # The connection block docs say that
   # the private key takes precendence over
   # the password if the private key is provided
-  _private_key_is_path      = try(fileexists(pathexpand(var.ssh_key)), false)
-  private_key               = var.ssh_password != "" ? false : local._private_key_is_path ? file(pathexpand(var.ssh_key)) : var.ssh_key
-  ssh_user                  = var.ssh_user
-  ssh_port                  = var.ssh_port
-  ssh_password              = var.ssh_password != "" ? var.ssh_password : false
-  chef_client_version       = var.chef_client_version
-  _archive_supplied         = var.policyfile_archive == "" ? false : true
-  _archive_supplied_is_file = try(local._archive_supplied, fileexists(pathexpand(var.policyfile_archive)), false)
-  _archive_supplied_is_dir  = local._archive_supplied && (local._archive_supplied_is_file != true) ? true : false
-  _archive_supplied_dirname = local._archive_supplied_is_file ? format("%s/", dirname(pathexpand(var.policyfile_archive))) : format("%s/", pathexpand(var.policyfile_archive))
-  _archive_selector         = try(element(sort(fileset(local._archive_supplied_dirname, format("{%s}**.tgz", local.policy_name))), 0), "NO_ARCHIVE_FOUND_FOR_POLICY")
-
+  _private_key_is_path        = try(fileexists(pathexpand(var.ssh_key)), false)
+  private_key                 = var.ssh_password != "" ? false : local._private_key_is_path ? file(pathexpand(var.ssh_key)) : var.ssh_key
+  ssh_user                    = var.ssh_user
+  ssh_port                    = var.ssh_port
+  ssh_password                = var.ssh_password != "" ? var.ssh_password : false
+  chef_client_version         = var.chef_client_version
+  _archive_supplied           = var.policyfile_archive == "" ? false : true
+  _archive_supplied_is_file   = try(local._archive_supplied, fileexists(pathexpand(var.policyfile_archive)), false)
+  _archive_supplied_is_dir    = local._archive_supplied && (local._archive_supplied_is_file != true) ? true : false
+  _archive_supplied_dirname   = local._archive_supplied_is_file ? format("%s/", dirname(pathexpand(var.policyfile_archive))) : format("%s/", pathexpand(var.policyfile_archive))
+  _archive_selector           = try(element(sort(fileset(local._archive_supplied_dirname, format("{%s}**.tgz", local.policy_name))), 0), "NO_ARCHIVE_FOUND_FOR_POLICY")
+  supplied_policyfile_archive = local._archive_supplied_is_file ? pathexpand(var.policyfile_archive) : local._archive_supplied_is_dir ? local._archive_selector : "💩"
   # if the policyfile archive supplied is a directory, add a trailing slash
-  supplied_policyfile_archive          = local._archive_supplied_is_file ? pathexpand(var.policyfile_archive) : local._archive_supplied_is_dir ? local._archive_selector : "💩"
   supplied_policyfile_archive_basename = format("%s", basename(trimsuffix(local.supplied_policyfile_archive, "/")))
-
-  chef_client_log_level    = var.chef_client_log_level
-  chef_client_logfile      = var.chef_client_logfile
-  data_bags                = pathexpand(var.data_bags)
-  attributes_file_source   = pathexpand(var.attributes_file)
-  attributes_file_basename = format("%s", basename(trimsuffix(local.attributes_file_source, "/")))
-  json_attributes          = var.attributes_file != "" ? format("--json-attributes %s", local.attributes_file_basename) : ""
+  chef_client_log_level                = var.chef_client_log_level
+  chef_client_logfile                  = var.chef_client_logfile
+  data_bags                            = pathexpand(var.data_bags)
+  attributes_file_source               = pathexpand(var.attributes_file)
+  attributes_file_basename             = format("%s", basename(trimsuffix(local.attributes_file_source, "/")))
+  json_attributes                      = var.attributes_file != "" ? format("--json-attributes %s", local.attributes_file_basename) : ""
 }
 
-resource "null_resource" "chef_install" {
+resource "null_resource" "chef_install_or_update" {
   provisioner "local-exec" {
     command = format(
-      "rm -f %s && chef install --chef-license accept --debug %s",
-      local.policyfile_lock,
+      "chef %s --chef-license accept --debug %s",
+      local._chef_update_or_install,
       local.policyfile,
     )
   }
@@ -54,7 +53,7 @@ resource "null_resource" "chef_install" {
 }
 
 resource "null_resource" "chef_export" {
-  depends_on = [null_resource.chef_install]
+  depends_on = [null_resource.chef_install_or_update]
 
   provisioner "local-exec" {
     command = format(
@@ -65,7 +64,7 @@ resource "null_resource" "chef_export" {
 
   provisioner "local-exec" {
     command = format(
-      "rm -rfv %s/* && chef export %s %s --force --debug --chef-license accept --archive 2>&1 | tee %s",
+      "chef export %s %s --force --debug --chef-license accept --archive 2>&1 | tee %s",
       local.local_build_dir,
       local.policyfile,
       local.local_build_dir,
@@ -83,7 +82,7 @@ resource "null_resource" "chef_export" {
 }
 
 resource "null_resource" "create_target_dirs" {
-  depends_on = [null_resource.chef_install]
+  depends_on = [null_resource.chef_install_or_update]
   provisioner "remote-exec" {
     connection {
       type        = "ssh"
@@ -113,7 +112,7 @@ resource "null_resource" "deliver_archive" {
   provisioner "file" {
     source = local._archive_supplied ? local.supplied_policyfile_archive : trimspace(replace(file(format("%s/%s-%s.chef_export.out", local.local_build_dir, local.policy_name, filesha256(local.policyfile_lock))), "/Exported policy .* to /", ""))
 
-#   attributes_file_basename = format("%s", basename(trimsuffix(local.attributes_file_source, "/")))
+    #   attributes_file_basename = format("%s", basename(trimsuffix(local.attributes_file_source, "/")))
 
 
     destination = local._archive_supplied ? format("%s/%s", local.target_export_dir, local.supplied_policyfile_archive_basename) : format(
