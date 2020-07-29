@@ -246,7 +246,9 @@ resource "null_resource" "ensure_chef_client" {
       ),
       # -P chef just installs Chef Infra Client
       format(
-        "%s/installchef.sh -P chef -v %s",
+        "%s/installchef.sh -P chef -v %s || sudo %s/installchef.sh -P chef -v %s",
+        local.target_install_dir,
+        local.chef_client_version,
         local.target_install_dir,
         local.chef_client_version
       ),
