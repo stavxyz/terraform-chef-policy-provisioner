@@ -280,7 +280,7 @@ resource "null_resource" "chef_client_run" {
       "chef-client --version",
       "pwd",
       format(
-        "chef-client --always-dump-stacktrace --once --log_level %s --logfile %s --local-mode --chef-license accept %s",
+        "sudo chef-client --always-dump-stacktrace --once --log_level %s --logfile %s --local-mode --chef-license accept %s",
         local.chef_client_log_level,
         local.chef_client_logfile,
         local.json_attributes,
