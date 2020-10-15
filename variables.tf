@@ -1,7 +1,7 @@
 variable "policy_name" {
   type        = string
-  description = "Policy name. In the future we may be able to infer this intelligently."
-  default     = "default"
+  description = "Policy name. If not supplied here, it is read from your Policyfile."
+  default     = ""
 }
 
 variable "chef_client_version" {
