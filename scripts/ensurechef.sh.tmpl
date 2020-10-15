@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+chmod +x ${target_install_dir}/installchef.sh
+
+if ! _current_version="$(chef-client --version | awk -F': ' '{print $NF}' 2>&1)"; then
+  echo "🔶 Failed to determine current chef-client version, or chef-client is not installed."
+  echo "Output from \`chef-client --version\` : $_current_version"
+  # Set to bad string so that comp below fails
+  _current_version="!"
+fi
+
+echo "🔹 Current chef-client version: $_current_version"
+echo "🔹 Desired chef-client version: ${chef_client_version}"
+
+if [[ "$_current_version" = ${chef_client_version}* ]]; then
+  echo '✅ chef-client version -> ${chef_client_version} <- already installed!'
+  exit 0
+else
+  echo Installing chef version ${chef_client_version}
+  # fallback to sudo
+  ${target_install_dir}/installchef.sh -P chef -v ${chef_client_version} || \
+    sudo ${target_install_dir}/installchef.sh -P chef -v ${chef_client_version}
+fi
+
+echo '✅ installed chef-client version ${chef_client_version} !'

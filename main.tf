@@ -1,14 +1,18 @@
 locals {
   # defaults to /var/chef/policy/<policy_name>
-  policy_name             = var.policy_name
-  target_install_dir      = format("%s/%s", pathexpand(var.install_dir), var.policy_name)
-  target_export_dir       = format("%s/export", local.target_install_dir)
-  target_src_dir          = format("%s/src", local.target_install_dir)
-  policyfile              = pathexpand(var.policyfile)
-  policyfile_lock         = format("%s/Policyfile.lock.json", dirname(pathexpand(var.policyfile)))
-  _chef_update_or_install = fileexists(local.policyfile_lock) ? "update" : "install"
-  local_build_dir         = format("%s/.chefexport", dirname(pathexpand(var.policyfile)))
-  host                    = var.host
+  policyfile                       = pathexpand(var.policyfile)
+  policy_name                      = var.policy_name != "" ? var.policy_name : lookup(regex("(?ms:(?:(?:^name ){1}(?:['\"]{1})(?P<policy_name>[a-zA-Z0-9-_ ]+)(?:['\"]{1}$)))", file(pathexpand(var.policyfile))), "policy_name")
+  target_install_dir               = format("%s/%s", pathexpand(var.install_dir), var.policy_name)
+  target_export_dir                = format("%s/export", local.target_install_dir)
+  target_src_dir                   = format("%s/src", local.target_install_dir)
+  _policyfile_lock                 = replace(basename(local.policyfile), "/.rb$/", ".lock.json")
+  policyfile_lock                  = format("%s/%s", dirname(local.policyfile), local._policyfile_lock)
+  _chef_update_or_install          = fileexists(local.policyfile_lock) ? "update" : "install"
+  local_build_dir                  = format("%s/.chefexport", dirname(pathexpand(var.policyfile)))
+  _install_chef_script_name        = "installchef.sh"
+  _install_chef_script_source      = format("%s/scripts/%s", path.module, local._install_chef_script_name)
+  _install_chef_script_destination = format("%s/%s", local.target_install_dir, local._install_chef_script_name)
+  host                             = var.host
   # The connection block docs say that
   # the private key takes precendence over
   # the password if the private key is provided
@@ -34,12 +38,31 @@ locals {
   json_attributes                      = var.attributes_file != "" ? format("--json-attributes %s", local.attributes_file_basename) : ""
 }
 
-resource "null_resource" "chef_install_or_update" {
+resource "null_resource" "create_local_build_dir" {
   provisioner "local-exec" {
     command = format(
-      "chef %s --chef-license accept --debug %s",
+      "mkdir -p %s",
+      local.local_build_dir,
+    )
+  }
+}
+
+resource "null_resource" "chef_install_or_update" {
+
+  # create file to capture stdout from chef update
+  provisioner "local-exec" {
+    command = format(
+      "touch %s",
+      format("%s/%s-%s.chef_update.out", local.local_build_dir, local.policy_name, filesha256(local.policyfile)),
+    )
+  }
+
+  provisioner "local-exec" {
+    command = format(
+      "chef %s --chef-license accept --debug %s 2>&1 | tee %s",
       local._chef_update_or_install,
       local.policyfile,
+      format("%s/%s-%s.chef_update.out", local.local_build_dir, local.policy_name, filesha256(local.policyfile)),
     )
   }
 
@@ -52,23 +75,95 @@ resource "null_resource" "chef_install_or_update" {
 
 }
 
-resource "null_resource" "chef_export" {
+resource "null_resource" "chef_update_if_not_done" {
   depends_on = [null_resource.chef_install_or_update]
 
+  # create file to capture stdout from chef update
   provisioner "local-exec" {
     command = format(
       "touch %s",
-      format("%s/%s-%s.chef_export.out", local.local_build_dir, local.policy_name, filesha256(local.policyfile_lock)),
+      format("%s/%s-%s.chef_update.out", local.local_build_dir, local.policy_name, filesha256(local.policyfile)),
     )
   }
 
+
+  provisioner "local-exec" {
+    command = format(
+      "chef update --chef-license accept --debug %s 2>&1 | tee %s",
+      local.policyfile,
+      format("%s/%s-%s.chef_update.out", local.local_build_dir, local.policy_name, filesha256(local.policyfile)),
+    )
+  }
+
+  # this entire block does not need to run if:
+  #  - the archive was supplied
+  #  - if chef update has already run
+  # i.e. only run this block if 'chef_update_or_install' executed 'install' instead of 'update'
+  count = (local._archive_supplied) || (local._chef_update_or_install == "update") ? 0 : 1
+
+  triggers = {
+    run = var.skip == true ? 0 : timestamp()
+  }
+
+}
+
+
+# locals {
+#   lockfile        = regex("(?ms:(?:(?:^Lockfile written to ){1}(?P<lockfile>[0-9A-Za-z/-]+.lock.json$)))", file(format("%s/%s-%s.chef_update.out", local.local_build_dir, local.policy_name, filesha256(local.policyfile))))
+#   policy_revision = regex("(?ms:(?:(?:^Policy revision id: ){1}(?P<policy_revision>[a-z0-9A-Z]{64}$)))", file(format("%s/%s-%s.chef_update.out", local.local_build_dir, local.policy_name, filesha256(local.policyfile))))
+# }
+
+resource "null_resource" "chef_export" {
+  depends_on = [null_resource.chef_install_or_update, null_resource.chef_update_if_not_done]
+
+  # create file to capture stdout from chef export
+  provisioner "local-exec" {
+    command = format(
+      "touch %s",
+      format(
+        "%s/%s-%s.chef_export.out",
+        local.local_build_dir,
+        local.policy_name,
+        lookup(
+          regex("(?ms:(?:(?:^Policy revision id: ){1}(?P<policy_revision>[a-z0-9A-Z]{64}$)))",
+            file(
+              format("%s/%s-%s.chef_update.out",
+                local.local_build_dir,
+                local.policy_name,
+                filesha256(local.policyfile)
+              )
+            )
+          ),
+          "policy_revision",
+        )
+      ),
+    )
+  }
+
+  # execute chef export
   provisioner "local-exec" {
     command = format(
       "chef export %s %s --force --debug --chef-license accept --archive 2>&1 | tee %s",
       local.local_build_dir,
       local.policyfile,
       local.local_build_dir,
-      format("%s/%s-%s.chef_export.out", local.local_build_dir, local.policy_name, filesha256(local.policyfile_lock)),
+      format(
+        "%s/%s-%s.chef_export.out",
+        local.local_build_dir,
+        local.policy_name,
+        lookup(
+          regex("(?ms:(?:(?:^Policy revision id: ){1}(?P<policy_revision>[a-z0-9A-Z]{64}$)))",
+            file(
+              format("%s/%s-%s.chef_update.out",
+                local.local_build_dir,
+                local.policy_name,
+                filesha256(local.policyfile)
+              )
+            )
+          ),
+          "policy_revision",
+        )
+      ),
     )
   }
 
@@ -82,7 +177,7 @@ resource "null_resource" "chef_export" {
 }
 
 resource "null_resource" "create_target_dirs" {
-  depends_on = [null_resource.chef_install_or_update]
+  depends_on = [null_resource.chef_install_or_update, null_resource.chef_update_if_not_done]
   provisioner "remote-exec" {
     connection {
       type        = "ssh"
@@ -110,9 +205,19 @@ resource "null_resource" "deliver_archive" {
   depends_on = [null_resource.create_target_dirs]
 
   provisioner "file" {
-    source = local._archive_supplied ? local.supplied_policyfile_archive : trimspace(replace(file(format("%s/%s-%s.chef_export.out", local.local_build_dir, local.policy_name, filesha256(local.policyfile_lock))), "/Exported policy .* to /", ""))
-
-    #   attributes_file_basename = format("%s", basename(trimsuffix(local.attributes_file_source, "/")))
+    source = local._archive_supplied ? local.supplied_policyfile_archive : trimspace(replace(file(format("%s/%s-%s.chef_export.out", local.local_build_dir, local.policy_name, lookup(
+      regex("(?ms:(?:(?:^Policy revision id: ){1}(?P<policy_revision>[a-z0-9A-Z]{64}$)))",
+        file(
+          format("%s/%s-%s.chef_update.out",
+            local.local_build_dir,
+            local.policy_name,
+            filesha256(local.policyfile)
+          )
+        )
+      ),
+      "policy_revision",
+      )
+    )), "/Exported policy .* to /", ""))
 
 
     destination = local._archive_supplied ? format("%s/%s", local.target_export_dir, local.supplied_policyfile_archive_basename) : format(
@@ -123,7 +228,18 @@ resource "null_resource" "deliver_archive" {
           "%s/%s-%s.chef_export.out",
           local.local_build_dir,
           local.policy_name,
-          filesha256(local.policyfile_lock)
+          lookup(
+            regex("(?ms:(?:(?:^Policy revision id: ){1}(?P<policy_revision>[a-z0-9A-Z]{64}$)))",
+              file(
+                format("%s/%s-%s.chef_update.out",
+                  local.local_build_dir,
+                  local.policy_name,
+                  filesha256(local.policyfile)
+                )
+              )
+            ),
+            "policy_revision",
+          ),
         )
       ), "/Exported policy .* to /", "")), "/"))
     )
@@ -156,10 +272,32 @@ resource "null_resource" "untar_archive" {
 
     inline = [
       format(
-        "tar -xvf \"$(ls -t %s/%s*.tgz | head -n1)\" -C %s",
-        local.target_export_dir,
-        local.policy_name,
-        local.target_src_dir
+        "tar -xvf %s -C %s",
+        local._archive_supplied ? format("%s/%s", local.target_export_dir, local.supplied_policyfile_archive_basename) : format(
+          "%s/%s",
+          local.target_export_dir,
+          basename(trimsuffix(trimspace(replace(file(
+            format(
+              "%s/%s-%s.chef_export.out",
+              local.local_build_dir,
+              local.policy_name,
+              lookup(
+                regex("(?ms:(?:(?:^Policy revision id: ){1}(?P<policy_revision>[a-z0-9A-Z]{64}$)))",
+                  file(
+                    format("%s/%s-%s.chef_update.out",
+                      local.local_build_dir,
+                      local.policy_name,
+                      filesha256(local.policyfile)
+                    )
+                  )
+                ),
+                "policy_revision",
+              )
+              ,
+            )
+          ), "/Exported policy .* to /", "")), "/"))
+        ),
+        local.target_src_dir,
       ),
       format("ls %s", local.target_src_dir),
     ]
@@ -217,10 +355,69 @@ resource "null_resource" "deliver_data_bags" {
   }
 }
 
+resource "null_resource" "deliver_chef_installer_script" {
+  depends_on = [null_resource.create_target_dirs]
+
+  provisioner "file" {
+    source      = local._install_chef_script_source
+    destination = local._install_chef_script_destination
+
+    connection {
+      type        = "ssh"
+      user        = local.ssh_user
+      password    = local.ssh_password
+      private_key = local.private_key
+      host        = local.host
+    }
+  }
+  # only deliver the installer script if the file has been changed
+  count = var.skip == true ? 0 : 1
+  # only deliver the installer script if the file has been changed
+  triggers = {
+    script_hash = filesha256(local._install_chef_script_source)
+    run         = var.skip == true ? 0 : timestamp()
+  }
+}
+
+locals {
+  ensure_chef_vars = {
+    target_install_dir  = local.target_install_dir,
+    chef_client_version = local.chef_client_version,
+  }
+  ensure_chef_content = templatefile(
+    "${path.module}/scripts/ensurechef.sh.tmpl",
+    tomap(local.ensure_chef_vars)
+  )
+}
+
+
+resource "null_resource" "deliver_ensure_chef_script" {
+  depends_on = [null_resource.create_target_dirs]
+
+  provisioner "file" {
+    content     = local.ensure_chef_content
+    destination = format("%s/ensurechef.sh", local.target_install_dir)
+
+    connection {
+      type        = "ssh"
+      user        = local.ssh_user
+      password    = local.ssh_password
+      private_key = local.private_key
+      host        = local.host
+    }
+  }
+  # only deliver the installer script if the file has been changed
+  count = var.skip == true ? 0 : 1
+  # only deliver the ensure script if the file has been changed
+  triggers = {
+    script_hash = sha256(local.ensure_chef_content)
+    run         = var.skip == true ? 0 : timestamp()
+  }
+}
 
 
 resource "null_resource" "ensure_chef_client" {
-  depends_on = [null_resource.untar_archive]
+  depends_on = [null_resource.deliver_ensure_chef_script]
   provisioner "remote-exec" {
     connection {
       type        = "ssh"
@@ -231,27 +428,8 @@ resource "null_resource" "ensure_chef_client" {
     }
 
     inline = [
-      format(
-        "curl --location --time-cond %s/installchef.sh --output %s/installchef.sh https://omnitruck.chef.io/install.sh",
-        local.target_install_dir,
-        local.target_install_dir,
-      ),
-      format(
-        "chmod +x %s/installchef.sh",
-        local.target_install_dir,
-      ),
-      format(
-        "echo Installing chef version %s",
-        local.chef_client_version
-      ),
-      # -P chef just installs Chef Infra Client
-      format(
-        "%s/installchef.sh -P chef -v %s || sudo %s/installchef.sh -P chef -v %s",
-        local.target_install_dir,
-        local.chef_client_version,
-        local.target_install_dir,
-        local.chef_client_version
-      ),
+      format("chmod +x %s/ensurechef.sh", local.target_install_dir),
+      format("/bin/bash %s/ensurechef.sh", local.target_install_dir),
     ]
   }
 
