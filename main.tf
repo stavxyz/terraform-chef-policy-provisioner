@@ -144,7 +144,6 @@ resource "null_resource" "chef_export" {
   provisioner "local-exec" {
     command = format(
       "chef export %s %s --force --debug --chef-license accept --archive 2>&1 | tee %s",
-      local.local_build_dir,
       local.policyfile,
       local.local_build_dir,
       format(
