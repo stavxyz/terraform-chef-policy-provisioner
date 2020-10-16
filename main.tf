@@ -1,8 +1,7 @@
 locals {
-  # defaults to /var/chef/policy/<policy_name>
   policyfile                       = pathexpand(var.policyfile)
   policy_name                      = var.policy_name != "" ? var.policy_name : lookup(regex("(?ms:(?:(?:^name ){1}(?:['\"]{1})(?P<policy_name>[a-zA-Z0-9-_ ]+)(?:['\"]{1}$)))", file(pathexpand(var.policyfile))), "policy_name")
-  target_install_dir               = format("%s/%s", pathexpand(var.install_dir), var.policy_name)
+  target_install_dir               = format("%s/%s", pathexpand(var.install_dir), local.policy_name)
   target_export_dir                = format("%s/export", local.target_install_dir)
   target_src_dir                   = format("%s/src", local.target_install_dir)
   _policyfile_lock                 = replace(basename(local.policyfile), "/.rb$/", ".lock.json")
@@ -36,6 +35,34 @@ locals {
   attributes_file_source               = pathexpand(var.attributes_file)
   attributes_file_basename             = format("%s", basename(trimsuffix(local.attributes_file_source, "/")))
   json_attributes                      = var.attributes_file != "" ? format("--json-attributes %s", local.attributes_file_basename) : ""
+}
+
+
+resource "null_resource" "_show_locals" {
+  provisioner "local-exec" {
+    command = format(<<EOF
+cat << OOO
+  🔸 policy_name =====> %s
+  🔸 policyfile ======> %s
+  🔸 local_build_dir => %s
+  🔸 target_install_dir => %s
+  🔸 target_export_dir => %s
+  🔸 target_src_dir => %s
+  🔸 policyfile_lock => %s
+  🔸 chef_client_version => %s
+OOO
+EOF
+      ,
+      local.policy_name,
+      local.policyfile,
+      local.local_build_dir,
+      local.target_install_dir,
+      local.target_export_dir,
+      local.target_src_dir,
+      local.policyfile_lock,
+      local.chef_client_version,
+    )
+  }
 }
 
 resource "null_resource" "create_local_build_dir" {
@@ -201,7 +228,7 @@ resource "null_resource" "create_target_dirs" {
 
 
 resource "null_resource" "deliver_archive" {
-  depends_on = [null_resource.create_target_dirs]
+  depends_on = [null_resource.create_target_dirs, null_resource.chef_export]
 
   provisioner "file" {
     source = local._archive_supplied ? local.supplied_policyfile_archive : trimspace(replace(file(format("%s/%s-%s.chef_export.out", local.local_build_dir, local.policy_name, lookup(
@@ -258,8 +285,16 @@ resource "null_resource" "deliver_archive" {
   }
 }
 
+locals {
+  _destination_for_supplied_archive = format(
+    "%s/%s",
+    local.target_export_dir,
+    local.supplied_policyfile_archive_basename
+  )
+}
+
 resource "null_resource" "untar_archive" {
-  depends_on = [null_resource.deliver_archive]
+  depends_on = [null_resource.chef_export, null_resource.deliver_archive]
   provisioner "remote-exec" {
     connection {
       type        = "ssh"
@@ -269,10 +304,39 @@ resource "null_resource" "untar_archive" {
       host        = local.host
     }
 
+    # 🎒 unpacking /home/sstavinoha/var/chef/policy//export/. to /home/sstavinoha/var/chef/policy//src
+
     inline = [
+      format("echo 🎒 unpacking %s to %s",
+        local._archive_supplied ? local._destination_for_supplied_archive : format(
+          "%s/%s",
+          local.target_export_dir,
+          basename(trimsuffix(trimspace(replace(file(
+            format(
+              "%s/%s-%s.chef_export.out",
+              local.local_build_dir,
+              local.policy_name,
+              lookup(
+                regex("(?ms:(?:(?:^Policy revision id: ){1}(?P<policy_revision>[a-z0-9A-Z]{64}$)))",
+                  file(
+                    format("%s/%s-%s.chef_update.out",
+                      local.local_build_dir,
+                      local.policy_name,
+                      filesha256(local.policyfile)
+                    )
+                  )
+                ),
+                "policy_revision",
+              )
+              ,
+            )
+          ), "/Exported policy .* to /", "")), "/"))
+        ),
+        local.target_src_dir,
+      ),
       format(
         "tar -xvf %s -C %s",
-        local._archive_supplied ? format("%s/%s", local.target_export_dir, local.supplied_policyfile_archive_basename) : format(
+        local._archive_supplied ? local._destination_for_supplied_archive : format(
           "%s/%s",
           local.target_export_dir,
           basename(trimsuffix(trimspace(replace(file(
