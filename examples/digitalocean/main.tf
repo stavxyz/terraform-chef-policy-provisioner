@@ -26,10 +26,10 @@ resource "digitalocean_droplet" "chef-node" {
 resource "local_file" "policyfile" {
   filename = "${path.cwd}/Policyfile.rb"
   content  = <<EOT
-    name 'chef_client'
-    default_source :supermarket
-    cookbook 'chef-client', '~> 11.5.0', :supermarket
-    run_list 'chef-client::default'
+name 'chef_client'
+default_source :supermarket
+cookbook 'chef-client', '~> 11.5.0', :supermarket
+run_list 'chef-client::default'
   EOT
 }
 
