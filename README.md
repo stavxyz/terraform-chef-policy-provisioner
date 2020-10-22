@@ -11,3 +11,6 @@ on your targeted infrastructure:
 
 Possible bonus features:
   - push logs back to central location or machine executing terraform?
+
+
+https://registry.terraform.io/modules/stavxyz/policy-provisioner/chef
