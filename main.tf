@@ -6,7 +6,7 @@ locals {
   target_src_dir                   = format("%s/src", local.target_install_dir)
   _policyfile_lock                 = replace(basename(local.policyfile), "/.rb$/", ".lock.json")
   policyfile_lock                  = format("%s/%s", dirname(local.policyfile), local._policyfile_lock)
-  _chef_update_or_install          = fileexists(local.policyfile_lock) ? "update" : "install"
+  _chef_update_or_install          = try((fileexists(local.policyfile_lock) ? "update" : "install"), "install")
   local_build_dir                  = format("%s/.chefexport", dirname(pathexpand(var.policyfile)))
   _install_chef_script_name        = "installchef.sh"
   _install_chef_script_source      = format("%s/scripts/%s", path.module, local._install_chef_script_name)
@@ -126,7 +126,8 @@ resource "null_resource" "chef_update_if_not_done" {
   #  - the archive was supplied
   #  - if chef update has already run
   # i.e. only run this block if 'chef_update_or_install' executed 'install' instead of 'update'
-  count = (local._archive_supplied) || (local._chef_update_or_install == "update") ? 0 : 1
+  count = local._archive_supplied ? 0 : 1
+  #count = (local._archive_supplied) || (local._chef_update_or_install == "update") ? 0 : 1
 
   triggers = {
     run = var.skip == true ? 0 : timestamp()
