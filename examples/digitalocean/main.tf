@@ -34,10 +34,11 @@ run_list 'chef-client::default'
 }
 
 module "provision" {
-  source     = "../.."
-  host       = digitalocean_droplet.chef-node.ipv4_address
-  policyfile = local_file.policyfile.filename
-  ssh_key    = tls_private_key.default.private_key_pem
+  source              = "../.."
+  host                = digitalocean_droplet.chef-node.ipv4_address
+  policyfile          = local_file.policyfile.filename
+  ssh_key             = tls_private_key.default.private_key_pem
+  chef_client_version = 16.6
 }
 
 output "droplet_ip" {
