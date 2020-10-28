@@ -7,7 +7,7 @@ locals {
   _policyfile_lock                 = replace(basename(local.policyfile), "/.rb$/", ".lock.json")
   policyfile_lock                  = format("%s/%s", dirname(local.policyfile), local._policyfile_lock)
   _chef_update_or_install          = try((fileexists(local.policyfile_lock) ? "update" : "install"), "install")
-  local_build_dir                  = format("%s/.chef/.%s-workspace", path.module, terraform.workspace)
+  local_build_dir                  = format("%s/.terraform/.chef/.%s-workspace", path.module, terraform.workspace)
   _install_chef_script_name        = "installchef.sh"
   _install_chef_script_source      = format("%s/scripts/%s", path.module, local._install_chef_script_name)
   _install_chef_script_destination = format("%s/%s", local.target_install_dir, local._install_chef_script_name)
