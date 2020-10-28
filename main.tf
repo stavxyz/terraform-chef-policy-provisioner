@@ -50,6 +50,7 @@ cat << OOO
   🔸 target_src_dir => %s
   🔸 policyfile_lock => %s
   🔸 chef_client_version => %s
+  🔸 chef_client_log_level => %s
 OOO
 EOF
       ,
@@ -61,6 +62,7 @@ EOF
       local.target_src_dir,
       local.policyfile_lock,
       local.chef_client_version,
+      local.chef_client_log_level,
     )
   }
 }
@@ -305,10 +307,8 @@ resource "null_resource" "untar_archive" {
       host        = local.host
     }
 
-    # 🎒 unpacking /home/sstavinoha/var/chef/policy//export/. to /home/sstavinoha/var/chef/policy//src
-
     inline = [
-      format("echo 🎒 unpacking %s to %s",
+      format("echo '🎒 unpacking %s to %s'",
         local._archive_supplied ? local._destination_for_supplied_archive : format(
           "%s/%s",
           local.target_export_dir,
@@ -335,8 +335,9 @@ resource "null_resource" "untar_archive" {
         ),
         local.target_src_dir,
       ),
+      format("rm -rf %s/*", local.target_src_dir),
       format(
-        "tar -xvf %s -C %s",
+        "tar --exclude-vcs-ignores --extract --verbose --file %s --directory %s",
         local._archive_supplied ? local._destination_for_supplied_archive : format(
           "%s/%s",
           local.target_export_dir,
