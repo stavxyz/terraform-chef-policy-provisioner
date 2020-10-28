@@ -7,7 +7,7 @@ locals {
   _policyfile_lock                 = replace(basename(local.policyfile), "/.rb$/", ".lock.json")
   policyfile_lock                  = format("%s/%s", dirname(local.policyfile), local._policyfile_lock)
   _chef_update_or_install          = try((fileexists(local.policyfile_lock) ? "update" : "install"), "install")
-  local_build_dir                  = format("%s/.chefexport", dirname(pathexpand(var.policyfile)))
+  local_build_dir                  = format("%s/.chef/.%s-workspace", path.module, terraform.workspace)
   _install_chef_script_name        = "installchef.sh"
   _install_chef_script_source      = format("%s/scripts/%s", path.module, local._install_chef_script_name)
   _install_chef_script_destination = format("%s/%s", local.target_install_dir, local._install_chef_script_name)
@@ -70,14 +70,23 @@ EOF
 resource "null_resource" "create_local_build_dir" {
   provisioner "local-exec" {
     command = format(
-      "mkdir -p %s",
+      "echo '🔨' && mkdir -vp %s",
       local.local_build_dir,
     )
+  }
+  provisioner "local-exec" {
+    command = format(
+      "ls %s",
+      local.local_build_dir,
+    )
+  }
+  triggers = {
+    run = local.local_build_dir
   }
 }
 
 resource "null_resource" "chef_install_or_update" {
-
+  depends_on = [null_resource.create_local_build_dir]
   # create file to capture stdout from chef update
   provisioner "local-exec" {
     command = format(
