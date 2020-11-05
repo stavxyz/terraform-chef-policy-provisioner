@@ -7,7 +7,7 @@ locals {
   _policyfile_lock                 = replace(basename(local.policyfile), "/.rb$/", ".lock.json")
   policyfile_lock                  = format("%s/%s", dirname(local.policyfile), local._policyfile_lock)
   _chef_update_or_install          = try((fileexists(local.policyfile_lock) ? "update" : "install"), "install")
-  local_build_dir                  = format("%s/.terraform/.chef/.%s-workspace", path.module, terraform.workspace)
+  local_build_dir                  = format("%s/.terraform/.chef/.%s-workspace/%s", path.module, terraform.workspace, local.policy_name)
   _install_chef_script_name        = "installchef.sh"
   _install_chef_script_source      = format("%s/scripts/%s", path.module, local._install_chef_script_name)
   _install_chef_script_destination = format("%s/%s", local.target_install_dir, local._install_chef_script_name)
@@ -238,6 +238,9 @@ resource "null_resource" "create_target_dirs" {
 
 }
 
+# only push archive if tarball hash has changed
+# only untar if policy revision has changed
+#
 
 resource "null_resource" "deliver_archive" {
   depends_on = [null_resource.create_target_dirs, null_resource.chef_export]
@@ -293,7 +296,8 @@ resource "null_resource" "deliver_archive" {
   # only deliver the archive if the archive has been updated
   count = var.skip_archive_push || (var.skip == true) ? 0 : 1
   triggers = {
-    run = var.skip == true ? 0 : timestamp()
+    #run = var.skip == true ? 0 : timestamp()
+    run = var.skip == true ? 0 : element(null_resource.chef_export.*.id, 0)
   }
 }
 
@@ -378,7 +382,7 @@ resource "null_resource" "untar_archive" {
   }
 
   triggers = {
-    run = var.skip == true ? 0 : timestamp()
+    run = var.skip == true ? 0 : element(null_resource.deliver_archive.*.id, 0)
   }
 }
 
@@ -449,7 +453,6 @@ resource "null_resource" "deliver_chef_installer_script" {
   # only deliver the installer script if the file has been changed
   triggers = {
     script_hash = filesha256(local._install_chef_script_source)
-    run         = var.skip == true ? 0 : timestamp()
   }
 }
 
@@ -467,11 +470,12 @@ locals {
 
 resource "null_resource" "deliver_ensure_chef_script" {
   depends_on = [null_resource.create_target_dirs]
+  # only deliver the ensure/installer script if the file has been changed
+  count = var.skip == true ? 0 : 1
 
   provisioner "file" {
     content     = local.ensure_chef_content
     destination = format("%s/ensurechef.sh", local.target_install_dir)
-
     connection {
       type        = "ssh"
       user        = local.ssh_user
@@ -480,12 +484,23 @@ resource "null_resource" "deliver_ensure_chef_script" {
       host        = local.host
     }
   }
-  # only deliver the installer script if the file has been changed
-  count = var.skip == true ? 0 : 1
-  # only deliver the ensure script if the file has been changed
+
+  provisioner "remote-exec" {
+    connection {
+      type        = "ssh"
+      user        = local.ssh_user
+      password    = local.ssh_password
+      private_key = local.private_key
+      host        = local.host
+    }
+
+    inline = [
+      format("chmod +x %s/ensurechef.sh", local.target_install_dir),
+    ]
+  }
+
   triggers = {
     script_hash = sha256(local.ensure_chef_content)
-    run         = var.skip == true ? 0 : timestamp()
   }
 }
 
@@ -502,19 +517,26 @@ resource "null_resource" "ensure_chef_client" {
     }
 
     inline = [
-      format("chmod +x %s/ensurechef.sh", local.target_install_dir),
       format("/bin/bash %s/ensurechef.sh", local.target_install_dir),
     ]
   }
 
+  count = var.skip == true ? 0 : 1
+
   triggers = {
-    run = var.skip == true ? 0 : timestamp()
+    # only re-run if client version changed
+    chef_client_version = local.chef_client_version
   }
 
 }
 
 resource "null_resource" "chef_client_run" {
-  depends_on = [null_resource.ensure_chef_client, null_resource.deliver_attributes_file, null_resource.deliver_data_bags]
+  depends_on = [
+    null_resource.untar_archive,
+    null_resource.ensure_chef_client,
+    null_resource.deliver_attributes_file,
+    null_resource.deliver_data_bags
+  ]
   provisioner "remote-exec" {
     connection {
       type        = "ssh"
@@ -532,10 +554,10 @@ resource "null_resource" "chef_client_run" {
       "chef-client --version",
       "pwd",
       format(
-        "sudo chef-client --always-dump-stacktrace --once --log_level %s --logfile %s --local-mode --chef-license accept %s",
+        "sudo chef-client --always-dump-stacktrace --once --log_level %s --local-mode --chef-license accept %s 2>&1 | tee %s",
         local.chef_client_log_level,
-        local.chef_client_logfile,
         local.json_attributes,
+        local.chef_client_logfile,
       )
     ]
   }
