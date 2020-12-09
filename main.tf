@@ -382,7 +382,7 @@ resource "null_resource" "untar_archive" {
   }
 
   triggers = {
-    run = var.skip == true ? 0 : element(null_resource.deliver_archive.*.id, 0)
+    run = var.skip == true ? 0 : try(element(null_resource.deliver_archive.*.id, 0), 1)
   }
 }
 
