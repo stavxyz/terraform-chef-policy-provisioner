@@ -35,6 +35,15 @@ locals {
   attributes_file_source               = pathexpand(var.attributes_file)
   attributes_file_basename             = format("%s", basename(trimsuffix(local.attributes_file_source, "/")))
   json_attributes                      = var.attributes_file != "" ? format("--json-attributes %s", local.attributes_file_basename) : ""
+  # supporting files/packages/data
+  support                   = pathexpand(var.support)
+  _support_supplied         = var.support == "" ? false : true
+  _support_supplied_is_file = try(local._support_supplied, fileexists(pathexpand(var.support)), false)
+  _support_supplied_is_dir  = local._support_supplied && (local._support_supplied_is_file != true) ? true : false
+  _support_supplied_dirname = local._support_supplied_is_file ? format("%s/", dirname(pathexpand(var.support))) : format("%s/", pathexpand(var.support))
+  supplied_support          = local._support_supplied_is_file ? pathexpand(var.support) : local._support_supplied_is_dir ? local._support_supplied_dirname : "💩"
+  # if the support supplied is a directory, add a trailing slash
+  supplied_support_basename = format("%s", basename(trimsuffix(local.supplied_support, "/")))
 }
 
 
@@ -432,6 +441,38 @@ resource "null_resource" "deliver_data_bags" {
     run = var.skip == true ? 0 : timestamp()
   }
 }
+
+data "archive_file" "support" {
+  count       = (local._support_supplied == false) || (var.skip == true) ? 0 : 1
+  type        = "zip"
+  source_file = local._support_supplied_is_file ? local.supplied_support : ""
+  source_dir  = local._support_supplied_is_dir ? local._support_supplied_dirname : ""
+  output_path = format("%s/support/%s.zip", local.local_build_dir, local.supplied_support_basename)
+}
+
+resource "null_resource" "deliver_support" {
+  depends_on = [archive_file.support]
+
+  provisioner "file" {
+    source      = archive_file.support.output_path
+    destination = format("%s/support/%s", local.target_src_dir, basename(archive_file.support.output_path))
+
+    connection {
+      type        = "ssh"
+      user        = local.ssh_user
+      password    = local.ssh_password
+      private_key = local.private_key
+      host        = local.host
+    }
+  }
+  # only deliver the installer script if the file has been changed
+  count = var.skip == true ? 0 : 1
+  # only deliver the installer script if the file has been changed
+  triggers = {
+    support_hash = archive_file.support.output_base64sha256
+  }
+}
+
 
 resource "null_resource" "deliver_chef_installer_script" {
   depends_on = [null_resource.create_target_dirs]
