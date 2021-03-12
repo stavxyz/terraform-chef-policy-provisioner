@@ -32,7 +32,7 @@ locals {
 # connection blocks
 locals {
   _private_key_is_path         = try(fileexists(pathexpand(var.connection.private_key)), false)
-  _bastion_private_key_is_path = try(fileexists(pathexpand(var.connection.bvation_private_key)), false)
+  _bastion_private_key_is_path = try(fileexists(pathexpand(var.connection.bastion_private_key)), false)
   private_key                  = local._private_key_is_path ? file(pathexpand(var.connection.private_key)) : var.connection.private_key
   bastion_private_key          = local._bastion_private_key_is_path ? file(pathexpand(var.connection.bastion_private_key)) : var.connection.bastion_private_key
 
