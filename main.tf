@@ -11,13 +11,13 @@ locals {
   _install_chef_script_name        = "installchef.sh"
   _install_chef_script_source      = format("%s/scripts/%s", path.module, local._install_chef_script_name)
   _install_chef_script_destination = format("%s/%s", local.target_install_dir, local._install_chef_script_name)
-  chef_client_version         = var.chef_client_version
-  _archive_supplied           = var.policyfile_archive == "" ? false : true
-  _archive_supplied_is_file   = try(local._archive_supplied, fileexists(pathexpand(var.policyfile_archive)), false)
-  _archive_supplied_is_dir    = local._archive_supplied && (local._archive_supplied_is_file != true) ? true : false
-  _archive_supplied_dirname   = local._archive_supplied_is_file ? format("%s/", dirname(pathexpand(var.policyfile_archive))) : format("%s/", pathexpand(var.policyfile_archive))
-  _archive_selector           = try(element(sort(fileset(local._archive_supplied_dirname, format("{%s}**.tgz", local.policy_name))), 0), "NO_ARCHIVE_FOUND_FOR_POLICY")
-  supplied_policyfile_archive = local._archive_supplied_is_file ? pathexpand(var.policyfile_archive) : local._archive_supplied_is_dir ? local._archive_selector : "💩"
+  chef_client_version              = var.chef_client_version
+  _archive_supplied                = var.policyfile_archive == "" ? false : true
+  _archive_supplied_is_file        = try(local._archive_supplied, fileexists(pathexpand(var.policyfile_archive)), false)
+  _archive_supplied_is_dir         = local._archive_supplied && (local._archive_supplied_is_file != true) ? true : false
+  _archive_supplied_dirname        = local._archive_supplied_is_file ? format("%s/", dirname(pathexpand(var.policyfile_archive))) : format("%s/", pathexpand(var.policyfile_archive))
+  _archive_selector                = try(element(sort(fileset(local._archive_supplied_dirname, format("{%s}**.tgz", local.policy_name))), 0), "NO_ARCHIVE_FOUND_FOR_POLICY")
+  supplied_policyfile_archive      = local._archive_supplied_is_file ? pathexpand(var.policyfile_archive) : local._archive_supplied_is_dir ? local._archive_selector : "💩"
   # if the policyfile archive supplied is a directory, add a trailing slash
   supplied_policyfile_archive_basename = format("%s", basename(trimsuffix(local.supplied_policyfile_archive, "/")))
   chef_client_log_level                = var.chef_client_log_level
@@ -29,37 +29,34 @@ locals {
 }
 
 
-# connection
+# connection blocks
 locals {
-  # The connection block docs say that
-  # the private key takes precendence over
-  # the password if the private key is provided
-  _private_key_is_path        = try(fileexists(pathexpand(var.connection.private_key)), false)
-  _bastion_private_key_is_path        = try(fileexists(pathexpand(var.connection.bvation_private_key)), false)
-  private_key                 = local._private_key_is_path ? file(pathexpand(var.connection.private_key)) : var.connection.private_key
-  bastion_private_key                 = local._bastion_private_key_is_path ? file(pathexpand(var.connection.bastion_private_key)) : var.connection.bastion_private_key
+  _private_key_is_path         = try(fileexists(pathexpand(var.connection.private_key)), false)
+  _bastion_private_key_is_path = try(fileexists(pathexpand(var.connection.bvation_private_key)), false)
+  private_key                  = local._private_key_is_path ? file(pathexpand(var.connection.private_key)) : var.connection.private_key
+  bastion_private_key          = local._bastion_private_key_is_path ? file(pathexpand(var.connection.bastion_private_key)) : var.connection.bastion_private_key
 
   connection = {
-      type                = "ssh"
-      user                = var.connection.user
-      password            = var.connection.password
-      host                = var.connection.host
-      port                = var.connection.port
-      timeout             = var.connection.timeout
-      script_path         = var.connection.script_path
-      private_key         = local.private_key
-      certificate         = var.connection.certificate
-      agent               = var.connection.agent
-      agent_identity      = var.connection.agent_identity
-      host_key            = var.connection.host_key
-      bastion_host        = var.connection.bastion_host
-      bastion_host_key    = var.connection.bastion_host_key
-      bastion_port        = var.connection.bastion_port
-      bastion_user        = var.connection.bastion_user
-      bastion_password    = var.connection.bastion_password
-      bastion_private_key = local.bastion_private_key
-      bastion_certificate = var.connection.bastion_certificate
-    }
+    type                = "ssh"
+    user                = var.connection.user
+    password            = var.connection.password
+    host                = var.connection.host
+    port                = var.connection.port
+    timeout             = var.connection.timeout
+    script_path         = var.connection.script_path
+    private_key         = local.private_key
+    certificate         = var.connection.certificate
+    agent               = var.connection.agent
+    agent_identity      = var.connection.agent_identity
+    host_key            = var.connection.host_key
+    bastion_host        = var.connection.bastion_host
+    bastion_host_key    = var.connection.bastion_host_key
+    bastion_port        = var.connection.bastion_port
+    bastion_user        = var.connection.bastion_user
+    bastion_password    = var.connection.bastion_password
+    bastion_private_key = local.bastion_private_key
+    bastion_certificate = var.connection.bastion_certificate
+  }
 }
 
 
