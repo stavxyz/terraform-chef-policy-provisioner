@@ -16,7 +16,7 @@ That's it!
 Let's say you have a relatively simple [Policyfile](https://docs.chef.io/policyfile) which bootstraps your machine with chef-client:
 
 
-```chef
+```ruby
 name 'chef_client'
 default_source :supermarket
 cookbook 'chef-client', '~> 11.5.0', :supermarket
