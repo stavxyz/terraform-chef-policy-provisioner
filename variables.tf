@@ -52,36 +52,6 @@ variable "policyfile_archive" {
   default     = ""
 }
 
-
-variable "host" {
-  type        = string
-  description = "Address of host (for ssh purposes)"
-}
-
-variable "ssh_key" {
-  type        = string
-  description = "Private key content, or local path to your private ssh key."
-  default     = "~/.ssh/id_rsa"
-}
-
-variable "ssh_user" {
-  type        = string
-  description = "SSH User Name"
-  default     = "root"
-}
-
-variable "ssh_port" {
-  type        = number
-  description = "SSH Port"
-  default     = 22
-}
-
-variable "ssh_password" {
-  type        = string
-  description = "SSH Password, if applicable"
-  default     = ""
-}
-
 variable "skip" {
   type        = bool
   description = "To skip chef provisiong, set this to true"
@@ -98,4 +68,29 @@ variable "skip_data_bags_push" {
   type        = bool
   description = "To force skip pushing the data_bags, set this to true. This is a temporary fix until we have code in place to determine whether the archive has changed since last push/apply."
   default     = false
+}
+
+variable "connection" {
+  type = object({
+    user                = optional(string)
+    password            = optional(string)
+    host                = string
+    port                = optional(number)
+    timeout             = optional(string)
+    script_path         = optional(string)
+    private_key         = optional(string)
+    certificate         = optional(string)
+    agent               = optional(bool)
+    agent_identity      = optional(string)
+    host_key            = optional(string)
+    bastion_host        = optional(string)
+    bastion_host_key    = optional(string)
+    bastion_port        = optional(number)
+    bastion_user        = optional(string)
+    bastion_password    = optional(string)
+    bastion_private_key = optional(string)
+    bastion_certificate = optional(string)
+  })
+
+  description = "https://www.terraform.io/docs/language/resources/provisioners/connection.html"
 }

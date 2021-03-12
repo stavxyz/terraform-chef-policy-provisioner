@@ -11,15 +11,6 @@ locals {
   _install_chef_script_name        = "installchef.sh"
   _install_chef_script_source      = format("%s/scripts/%s", path.module, local._install_chef_script_name)
   _install_chef_script_destination = format("%s/%s", local.target_install_dir, local._install_chef_script_name)
-  host                             = var.host
-  # The connection block docs say that
-  # the private key takes precendence over
-  # the password if the private key is provided
-  _private_key_is_path        = try(fileexists(pathexpand(var.ssh_key)), false)
-  private_key                 = var.ssh_password != "" ? false : local._private_key_is_path ? file(pathexpand(var.ssh_key)) : var.ssh_key
-  ssh_user                    = var.ssh_user
-  ssh_port                    = var.ssh_port
-  ssh_password                = var.ssh_password != "" ? var.ssh_password : false
   chef_client_version         = var.chef_client_version
   _archive_supplied           = var.policyfile_archive == "" ? false : true
   _archive_supplied_is_file   = try(local._archive_supplied, fileexists(pathexpand(var.policyfile_archive)), false)
@@ -36,6 +27,41 @@ locals {
   attributes_file_basename             = format("%s", basename(trimsuffix(local.attributes_file_source, "/")))
   json_attributes                      = var.attributes_file != "" ? format("--json-attributes %s", local.attributes_file_basename) : ""
 }
+
+
+# connection
+locals {
+  # The connection block docs say that
+  # the private key takes precendence over
+  # the password if the private key is provided
+  _private_key_is_path        = try(fileexists(pathexpand(var.connection.private_key)), false)
+  _bastion_private_key_is_path        = try(fileexists(pathexpand(var.connection.bvation_private_key)), false)
+  private_key                 = local._private_key_is_path ? file(pathexpand(var.connection.private_key)) : var.connection.private_key
+  bastion_private_key                 = local._bastion_private_key_is_path ? file(pathexpand(var.connection.bastion_private_key)) : var.connection.bastion_private_key
+
+  connection = {
+      type                = "ssh"
+      user                = var.connection.user
+      password            = var.connection.password
+      host                = var.connection.host
+      port                = var.connection.port
+      timeout             = var.connection.timeout
+      script_path         = var.connection.script_path
+      private_key         = local.private_key
+      certificate         = var.connection.certificate
+      agent               = var.connection.agent
+      agent_identity      = var.connection.agent_identity
+      host_key            = var.connection.host_key
+      bastion_host        = var.connection.bastion_host
+      bastion_host_key    = var.connection.bastion_host_key
+      bastion_port        = var.connection.bastion_port
+      bastion_user        = var.connection.bastion_user
+      bastion_password    = var.connection.bastion_password
+      bastion_private_key = local.bastion_private_key
+      bastion_certificate = var.connection.bastion_certificate
+    }
+}
+
 
 
 resource "null_resource" "_show_locals" {
@@ -217,12 +243,27 @@ resource "null_resource" "chef_export" {
 resource "null_resource" "create_target_dirs" {
   depends_on = [null_resource.chef_install_or_update, null_resource.chef_update_if_not_done]
   provisioner "remote-exec" {
+
     connection {
-      type        = "ssh"
-      user        = local.ssh_user
-      password    = local.ssh_password
-      private_key = local.private_key
-      host        = local.host
+      type                = local.connection.type
+      user                = local.connection.user
+      password            = local.connection.password
+      host                = local.connection.host
+      port                = local.connection.port
+      timeout             = local.connection.timeout
+      script_path         = local.connection.script_path
+      private_key         = local.connection.private_key
+      certificate         = local.connection.certificate
+      agent               = local.connection.agent
+      agent_identity      = local.connection.agent_identity
+      host_key            = local.connection.host_key
+      bastion_host        = local.connection.bastion_host
+      bastion_host_key    = local.connection.bastion_host_key
+      bastion_port        = local.connection.bastion_port
+      bastion_user        = local.connection.bastion_user
+      bastion_password    = local.connection.bastion_password
+      bastion_private_key = local.connection.bastion_private_key
+      bastion_certificate = local.connection.bastion_certificate
     }
 
     inline = [
@@ -286,12 +327,27 @@ resource "null_resource" "deliver_archive" {
     )
 
     connection {
-      type        = "ssh"
-      user        = local.ssh_user
-      password    = local.ssh_password
-      private_key = local.private_key
-      host        = local.host
+      type                = local.connection.type
+      user                = local.connection.user
+      password            = local.connection.password
+      host                = local.connection.host
+      port                = local.connection.port
+      timeout             = local.connection.timeout
+      script_path         = local.connection.script_path
+      private_key         = local.connection.private_key
+      certificate         = local.connection.certificate
+      agent               = local.connection.agent
+      agent_identity      = local.connection.agent_identity
+      host_key            = local.connection.host_key
+      bastion_host        = local.connection.bastion_host
+      bastion_host_key    = local.connection.bastion_host_key
+      bastion_port        = local.connection.bastion_port
+      bastion_user        = local.connection.bastion_user
+      bastion_password    = local.connection.bastion_password
+      bastion_private_key = local.connection.bastion_private_key
+      bastion_certificate = local.connection.bastion_certificate
     }
+
   }
   # only deliver the archive if the archive has been updated
   count = var.skip_archive_push || (var.skip == true) ? 0 : 1
@@ -312,13 +368,29 @@ locals {
 resource "null_resource" "untar_archive" {
   depends_on = [null_resource.chef_export, null_resource.deliver_archive]
   provisioner "remote-exec" {
+
     connection {
-      type        = "ssh"
-      user        = local.ssh_user
-      password    = local.ssh_password
-      private_key = local.private_key
-      host        = local.host
+      type                = local.connection.type
+      user                = local.connection.user
+      password            = local.connection.password
+      host                = local.connection.host
+      port                = local.connection.port
+      timeout             = local.connection.timeout
+      script_path         = local.connection.script_path
+      private_key         = local.connection.private_key
+      certificate         = local.connection.certificate
+      agent               = local.connection.agent
+      agent_identity      = local.connection.agent_identity
+      host_key            = local.connection.host_key
+      bastion_host        = local.connection.bastion_host
+      bastion_host_key    = local.connection.bastion_host_key
+      bastion_port        = local.connection.bastion_port
+      bastion_user        = local.connection.bastion_user
+      bastion_password    = local.connection.bastion_password
+      bastion_private_key = local.connection.bastion_private_key
+      bastion_certificate = local.connection.bastion_certificate
     }
+
 
     inline = [
       format("echo '🎒 unpacking %s to %s'",
@@ -393,12 +465,27 @@ resource "null_resource" "deliver_attributes_file" {
     destination = format("%s/%s", local.target_src_dir, local.attributes_file_basename)
 
     connection {
-      type        = "ssh"
-      user        = local.ssh_user
-      password    = local.ssh_password
-      private_key = local.private_key
-      host        = local.host
+      type                = local.connection.type
+      user                = local.connection.user
+      password            = local.connection.password
+      host                = local.connection.host
+      port                = local.connection.port
+      timeout             = local.connection.timeout
+      script_path         = local.connection.script_path
+      private_key         = local.connection.private_key
+      certificate         = local.connection.certificate
+      agent               = local.connection.agent
+      agent_identity      = local.connection.agent_identity
+      host_key            = local.connection.host_key
+      bastion_host        = local.connection.bastion_host
+      bastion_host_key    = local.connection.bastion_host_key
+      bastion_port        = local.connection.bastion_port
+      bastion_user        = local.connection.bastion_user
+      bastion_password    = local.connection.bastion_password
+      bastion_private_key = local.connection.bastion_private_key
+      bastion_certificate = local.connection.bastion_certificate
     }
+
   }
   # only deliver the attributes file if the file has been changed
   count = (var.attributes_file == "") || (var.skip == true) ? 0 : 1
@@ -416,12 +503,27 @@ resource "null_resource" "deliver_data_bags" {
     destination = format("%s", local.target_src_dir)
 
     connection {
-      type        = "ssh"
-      user        = local.ssh_user
-      password    = local.ssh_password
-      private_key = local.private_key
-      host        = local.host
+      type                = local.connection.type
+      user                = local.connection.user
+      password            = local.connection.password
+      host                = local.connection.host
+      port                = local.connection.port
+      timeout             = local.connection.timeout
+      script_path         = local.connection.script_path
+      private_key         = local.connection.private_key
+      certificate         = local.connection.certificate
+      agent               = local.connection.agent
+      agent_identity      = local.connection.agent_identity
+      host_key            = local.connection.host_key
+      bastion_host        = local.connection.bastion_host
+      bastion_host_key    = local.connection.bastion_host_key
+      bastion_port        = local.connection.bastion_port
+      bastion_user        = local.connection.bastion_user
+      bastion_password    = local.connection.bastion_password
+      bastion_private_key = local.connection.bastion_private_key
+      bastion_certificate = local.connection.bastion_certificate
     }
+
   }
   # TODO: in the future, zip the data bags, check hash, send archive
   # only deliver the data_bags if they have been changed
@@ -441,11 +543,25 @@ resource "null_resource" "deliver_chef_installer_script" {
     destination = local._install_chef_script_destination
 
     connection {
-      type        = "ssh"
-      user        = local.ssh_user
-      password    = local.ssh_password
-      private_key = local.private_key
-      host        = local.host
+      type                = local.connection.type
+      user                = local.connection.user
+      password            = local.connection.password
+      host                = local.connection.host
+      port                = local.connection.port
+      timeout             = local.connection.timeout
+      script_path         = local.connection.script_path
+      private_key         = local.connection.private_key
+      certificate         = local.connection.certificate
+      agent               = local.connection.agent
+      agent_identity      = local.connection.agent_identity
+      host_key            = local.connection.host_key
+      bastion_host        = local.connection.bastion_host
+      bastion_host_key    = local.connection.bastion_host_key
+      bastion_port        = local.connection.bastion_port
+      bastion_user        = local.connection.bastion_user
+      bastion_password    = local.connection.bastion_password
+      bastion_private_key = local.connection.bastion_private_key
+      bastion_certificate = local.connection.bastion_certificate
     }
   }
   # only deliver the installer script if the file has been changed
@@ -476,22 +592,53 @@ resource "null_resource" "deliver_ensure_chef_script" {
   provisioner "file" {
     content     = local.ensure_chef_content
     destination = format("%s/ensurechef.sh", local.target_install_dir)
+
     connection {
-      type        = "ssh"
-      user        = local.ssh_user
-      password    = local.ssh_password
-      private_key = local.private_key
-      host        = local.host
+      type                = local.connection.type
+      user                = local.connection.user
+      password            = local.connection.password
+      host                = local.connection.host
+      port                = local.connection.port
+      timeout             = local.connection.timeout
+      script_path         = local.connection.script_path
+      private_key         = local.connection.private_key
+      certificate         = local.connection.certificate
+      agent               = local.connection.agent
+      agent_identity      = local.connection.agent_identity
+      host_key            = local.connection.host_key
+      bastion_host        = local.connection.bastion_host
+      bastion_host_key    = local.connection.bastion_host_key
+      bastion_port        = local.connection.bastion_port
+      bastion_user        = local.connection.bastion_user
+      bastion_password    = local.connection.bastion_password
+      bastion_private_key = local.connection.bastion_private_key
+      bastion_certificate = local.connection.bastion_certificate
     }
+
   }
 
   provisioner "remote-exec" {
+
     connection {
-      type        = "ssh"
-      user        = local.ssh_user
-      password    = local.ssh_password
-      private_key = local.private_key
-      host        = local.host
+      type                = local.connection.type
+      user                = local.connection.user
+      password            = local.connection.password
+      host                = local.connection.host
+      port                = local.connection.port
+      timeout             = local.connection.timeout
+      script_path         = local.connection.script_path
+      private_key         = local.connection.private_key
+      certificate         = local.connection.certificate
+      agent               = local.connection.agent
+      agent_identity      = local.connection.agent_identity
+      host_key            = local.connection.host_key
+      bastion_host        = local.connection.bastion_host
+      bastion_host_key    = local.connection.bastion_host_key
+      bastion_port        = local.connection.bastion_port
+      bastion_user        = local.connection.bastion_user
+      bastion_password    = local.connection.bastion_password
+      bastion_private_key = local.connection.bastion_private_key
+      bastion_certificate = local.connection.bastion_certificate
     }
 
     inline = [
@@ -508,12 +655,27 @@ resource "null_resource" "deliver_ensure_chef_script" {
 resource "null_resource" "ensure_chef_client" {
   depends_on = [null_resource.deliver_ensure_chef_script]
   provisioner "remote-exec" {
+
     connection {
-      type        = "ssh"
-      user        = local.ssh_user
-      password    = local.ssh_password
-      private_key = local.private_key
-      host        = local.host
+      type                = local.connection.type
+      user                = local.connection.user
+      password            = local.connection.password
+      host                = local.connection.host
+      port                = local.connection.port
+      timeout             = local.connection.timeout
+      script_path         = local.connection.script_path
+      private_key         = local.connection.private_key
+      certificate         = local.connection.certificate
+      agent               = local.connection.agent
+      agent_identity      = local.connection.agent_identity
+      host_key            = local.connection.host_key
+      bastion_host        = local.connection.bastion_host
+      bastion_host_key    = local.connection.bastion_host_key
+      bastion_port        = local.connection.bastion_port
+      bastion_user        = local.connection.bastion_user
+      bastion_password    = local.connection.bastion_password
+      bastion_private_key = local.connection.bastion_private_key
+      bastion_certificate = local.connection.bastion_certificate
     }
 
     inline = [
@@ -538,12 +700,27 @@ resource "null_resource" "chef_client_run" {
     null_resource.deliver_data_bags
   ]
   provisioner "remote-exec" {
+
     connection {
-      type        = "ssh"
-      user        = local.ssh_user
-      password    = local.ssh_password
-      private_key = local.private_key
-      host        = local.host
+      type                = local.connection.type
+      user                = local.connection.user
+      password            = local.connection.password
+      host                = local.connection.host
+      port                = local.connection.port
+      timeout             = local.connection.timeout
+      script_path         = local.connection.script_path
+      private_key         = local.connection.private_key
+      certificate         = local.connection.certificate
+      agent               = local.connection.agent
+      agent_identity      = local.connection.agent_identity
+      host_key            = local.connection.host_key
+      bastion_host        = local.connection.bastion_host
+      bastion_host_key    = local.connection.bastion_host_key
+      bastion_port        = local.connection.bastion_port
+      bastion_user        = local.connection.bastion_user
+      bastion_password    = local.connection.bastion_password
+      bastion_private_key = local.connection.bastion_private_key
+      bastion_certificate = local.connection.bastion_certificate
     }
 
     inline = [
