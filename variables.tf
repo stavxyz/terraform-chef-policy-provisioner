@@ -70,6 +70,10 @@ variable "skip_data_bags_push" {
   default     = false
 }
 
+terraform {
+  experiments = [module_variable_optional_attrs]
+}
+
 variable "connection" {
   type = object({
     user                = optional(string)
