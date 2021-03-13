@@ -76,7 +76,7 @@ All of the client-side steps are run in an isolated build directory created by t
 | **Variable Name** | **Description** | **Default** |
 | ------ | ----- | ----- |
 | **`policyfile`** | Path to your [Policyfile](https://docs.chef.io/policyfile/) | `./Policyfile.rb` |
-| **`chef_client_version`** | The specified chef-client version to use. | `16.2` |
+| **`chef_client_version`** | The specified chef-client version to use. | `16.10.x` |
 | **`policy_name`** | The name of the chef policy. If not supplied here, it is read from your Policyfile. | null |
 | **`chef_client_log_level`** | Log level for chef-client. [auto, trace, debug, info, warn, error, fatal] | `info` |
 | **`chef_client_logfile`** | Log file location (on target machine). | `./chef-client.log` |
@@ -94,26 +94,26 @@ All of the client-side steps are run in an isolated build directory created by t
 
 The following attributes are supported by the `connection` object variable:
 
-| Key | Description |
+| Key | Description | Default |
 | ----- | ----- |
-| `user` | optional(string) |
-| `password` | optional(string) |
-| `host` | required(string) |
-| `port` | optional(number) |
-| `timeout` | optional(string) |
-| `script_path` | optional(string) |
-| `private_key` | optional(string) |
-| `certificate` | optional(string) |
-| `agent` | optional(bool) |
-| `agent_identity` | optional(string) |
-| `host_key` | optional(string) |
-| `bastion_host` |        optional(string) |
-| `bastion_host_key` |    optional(string) |
-| `bastion_port` |        optional(number) |
-| `bastion_user` |        optional(string) |
-| `bastion_password` |    optional(string) |
-| `bastion_private_key` | optional(string) |
-| `bastion_certificate` | optional(string) |
+| `user` | The user that we should use for the connection. | `root` |
+| `password` | The password we should use for the connection. | null |
+| `host` | (Required) The address of the resource to connect to. | null |
+| `port` | The port to connect to. | `22` |
+| `timeout` | The timeout to wait for the connection to become available. Should be provided as a string like 30s or 5m. | 5m |
+| `script_path` | The path used to copy scripts meant for remote execution. | null |
+| `private_key` | The path to, or contents of, an SSH key to use for the connection. This takes preference over the password if provided. | null |
+| `certificate` | The contents of a signed CA Certificate. The certificate argument must be used in conjunction with a private_key. These can be loaded from a file on disk using the the `file` function. | null |
+| `agent` | Set to `false` to disable using ssh-agent to authenticate. | true |
+| `agent_identity` | The preferred identity from the ssh agent for authentication. | null (auto) |
+| `host_key` | The public key from the remote host or the signing CA, used to verify the connection. | null |
+| `bastion_host` | Setting this enables the bastion Host connection. This host will be connected to first, and then the `host` connection will be made from there. | null |
+| `bastion_host_key` | The public key from the remote host or the signing CA, used to verify the host connection. | null |
+| `bastion_port` | The port to use connect to the bastion host. Defaults to the value of the `port` field. | null |
+| `bastion_user` | The user for the connection to the bastion host. Defaults to the value of the `user` field. |
+| `bastion_password` | The password we should use for the bastion host. Defaults to the value of the `password` field. | null |
+| `bastion_private_key` | The path to, or contents of, an SSH key file to use for the bastion host. Defaults to the value of the `private_key` field. | null |
+| `bastion_certificate` | The contents of a signed CA Certificate. The certificate argument must be used in conjunction with a `bastion_private_key`. These can be loaded from a file on disk using the the `file()` function.|
 
 
 # Terraform Registry
