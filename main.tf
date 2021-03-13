@@ -592,7 +592,7 @@ locals {
 
 
 resource "null_resource" "deliver_ensure_chef_script" {
-  depends_on = [null_resource.create_target_dirs]
+  depends_on = [null_resource.create_target_dirs, null_resource.deliver_chef_installer_script]
   # only deliver the ensure/installer script if the file has been changed
   count = var.skip == true ? 0 : 1
 
