@@ -7,7 +7,7 @@ variable "policy_name" {
 variable "chef_client_version" {
   type        = string
   description = "Specify the chef-client version to use."
-  default     = "16.2"
+  default     = "16.10"
 }
 
 variable "chef_client_log_level" {
