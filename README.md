@@ -71,6 +71,49 @@ All of the client-side steps are run in an isolated build directory created by t
   - By specifying a json file of attributes as variable `attributes_file`
 - No Chef Server Required
 
+## Variables
+
+| **Variable Name** | **Description** | **Default** |
+| ------ | ----- | ----- |
+| **`policyfile`** | Path to your [Policyfile](https://docs.chef.io/policyfile/) | `./Policyfile.rb` |
+| **`chef_client_version`** | The specified chef-client version to use. | `16.2` |
+| **`policy_name`** | The name of the chef policy. If not supplied here, it is read from your Policyfile. | null |
+| **`chef_client_log_level`** | Log level for chef-client. [auto, trace, debug, info, warn, error, fatal] | `info` |
+| **`chef_client_logfile`** | Log file location (on target machine). | `./chef-client.log` |
+| **`attributes_file`** | Path to JSON file containing chef attributes. | null |
+| **`data_bags`** | Path to your `data_bags` directory. | null |
+| **`install_dir`** | The directory to untar within and where to install the policy archive on the target system. | `/var/chef/policy` |
+| **`policyfile_archive`** | If not supplying `policyfile`, this is the path to your policyfile archive (.tgz) | null |
+| **`skip`** | Beta feature. If `true`, do not perform provisioning. | `false` |
+| **`skip_archive_push`** | Beta feature. To force skip pushing the archive set this to `true`. This is a temporary workaround until we have better code in place to determine whether the archive has changed since last push/apply. | false |
+| **`skip_data_bags_push`** | Beta feature. To force skip pushing `data_bags` set this to `true`. This is a temporary workaround until we have better code in place to determine whether the `data_bags` content has changed since last push/apply. | false |
+| **`connection`** | `object` variable containing all pertinent `ssh` connection info. Requires `host` key. See below, and  https://www.terraform.io/docs/language/resources/provisioners/connection.html for more details. | null |
+
+
+## `connection` variable
+
+The following attributes are supported by the `connection` object variable:
+
+| Key | Description |
+| ----- | ----- |
+| `user` | optional(string) |
+| `password` | optional(string) |
+| `host` | required(string) |
+| `port` | optional(number) |
+| `timeout` | optional(string) |
+| `script_path` | optional(string) |
+| `private_key` | optional(string) |
+| `certificate` | optional(string) |
+| `agent` | optional(bool) |
+| `agent_identity` | optional(string) |
+| `host_key` | optional(string) |
+| `bastion_host` |        optional(string) |
+| `bastion_host_key` |    optional(string) |
+| `bastion_port` |        optional(number) |
+| `bastion_user` |        optional(string) |
+| `bastion_password` |    optional(string) |
+| `bastion_private_key` | optional(string) |
+| `bastion_certificate` | optional(string) |
 
 
 ## Terraform Registry
