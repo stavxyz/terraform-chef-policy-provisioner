@@ -31,10 +31,19 @@ locals {
 
 # connection blocks
 locals {
-  _private_key_is_path         = try(fileexists(pathexpand(var.connection.private_key)), false)
-  _bastion_private_key_is_path = try(fileexists(pathexpand(var.connection.bastion_private_key)), false)
-  private_key                  = local._private_key_is_path ? file(pathexpand(var.connection.private_key)) : var.connection.private_key
-  bastion_private_key          = local._bastion_private_key_is_path ? file(pathexpand(var.connection.bastion_private_key)) : var.connection.bastion_private_key
+
+  _private_key_is_path = try(fileexists(pathexpand(var.connection.private_key)), false)
+  private_key          = local._private_key_is_path ? file(pathexpand(var.connection.private_key)) : var.connection.private_key
+
+  # bastion_private_key, bastion_port, bastion_password, bastion_user
+  # default to the other values provided for the types unless explicitly specified
+  _bastion_private_key         = try(coalesce(var.connection.bastion_private_key, var.connection.private_key), var.connection.bastion_private_key)
+  _bastion_private_key_is_path = try(fileexists(pathexpand(local._bastion_private_key)), false)
+  bastion_private_key          = local._bastion_private_key_is_path ? file(pathexpand(local._bastion_private_key)) : local._bastion_private_key
+
+  bastion_user     = try(coalesce(var.connection.bastion_user, var.connection.user), var.connection.bastion_user)
+  bastion_password = try(coalesce(var.connection.bastion_password, var.connection.password), var.connection.bastion_password)
+  bastion_port     = try(coalesce(var.connection.bastion_port, var.connection.port), var.connection.bastion_port)
 
   connection = {
     type                = "ssh"
