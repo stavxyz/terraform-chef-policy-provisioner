@@ -20,14 +20,14 @@ That's it!
 
 ## Example
 
-Let's say you have a relatively simple [Policyfile](https://docs.chef.io/policyfile) which bootstraps your machine with docker:
+Let's say you have a relatively simple [Policyfile](https://docs.chef.io/policyfile) which provisions your machine with mongodb:
 
 
 ```ruby
-name 'docker'
+name 'mongodb'
 default_source :supermarket
-cookbook 'docker', '~> 7.7.0', :supermarket
-run_list 'docker::default'
+cookbook 'sc-mongodb', '~> 4.1.0', :supermarket
+run_list 'sc-mongodb::default'
 ```
 
 and you would like to apply this policy to a VM. For this example let's assume use a [DigitalOcean Droplet](https://registry.terraform.io/providers/digitalocean/digitalocean/latest/docs/resources/droplet).
@@ -37,7 +37,7 @@ Also, for the sake of this example, let's assume your local private key, `~/.ssh
 ```terraform
 resource "digitalocean_droplet" "chef-node" {
   image    = "ubuntu-18-04-x64"
-  name     = "chef_docker_policy_droplet"
+  name     = "chef_mongodb_policy_droplet"
   region   = "nyc2"
   size     = "s-1vcpu-1gb"
   ssh_keys = ["my-ssh-key"]
