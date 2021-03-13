@@ -65,6 +65,7 @@ All of the client-side steps are run in an isolated build directory created by t
 # Features
 
 - Automatically installs `chef-client` _**of your desired version**_ on your target system(s). This allows you to quickly and easily swap out the version of chef-client being used to converge your nodes. By default, the latest stable version of `chef-client` will be used, but you are also able to explicitly specify your desired version of `chef-client` by supplying a value for the `chef_client_version` variable to this module.
+- Instead of providing the path to a Policyfile, you can optionally supply a path to an existing policyfile archive. This skips the `chef update` and `chef export` steps.
 - Supports the delivery/use of `data_bags`
   - By specifying a path to your `data_bags` directory as variable `data_bags`
 - Supports the delivery/use of attributes that are specified outside of your `Policyfile.rb`
@@ -78,12 +79,12 @@ All of the client-side steps are run in an isolated build directory created by t
 | **`policyfile`** | Path to your [Policyfile](https://docs.chef.io/policyfile/) | `./Policyfile.rb` |
 | **`chef_client_version`** | The specified chef-client version to use. | `16.10.x` |
 | **`policy_name`** | The name of the chef policy. If not supplied here, it is read from your Policyfile. | null |
+| **`policyfile_archive`** | If not supplying `policyfile`, this is the path to your policyfile archive (.tgz) | null |
 | **`chef_client_log_level`** | Log level for chef-client. [auto, trace, debug, info, warn, error, fatal] | `info` |
 | **`chef_client_logfile`** | Log file location (on target machine). | `./chef-client.log` |
 | **`attributes_file`** | Path to JSON file containing chef attributes. | null |
 | **`data_bags`** | Path to your `data_bags` directory. | null |
 | **`install_dir`** | The directory to untar within and where to install the policy archive on the target system. | `/var/chef/policy` |
-| **`policyfile_archive`** | If not supplying `policyfile`, this is the path to your policyfile archive (.tgz) | null |
 | **`skip`** | Beta feature. If `true`, do not perform provisioning. | `false` |
 | **`skip_archive_push`** | Beta feature. To force skip pushing the archive set this to `true`. This is a temporary workaround until we have better code in place to determine whether the archive has changed since last push/apply. | `false` |
 | **`skip_data_bags_push`** | Beta feature. To force skip pushing `data_bags` set this to `true`. This is a temporary workaround until we have better code in place to determine whether the `data_bags` content has changed since last push/apply. | `false` |
