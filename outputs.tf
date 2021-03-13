@@ -11,5 +11,5 @@ output "destination_directory" {
 }
 
 output "ssh_command" {
-  value = format("ssh %s@%s %s", coalesce(local.connection.user, "root"), local.connection.host, (local._private_key_is_path ? format("-i %s", local.connection.private_key) : "💩"))
+  value = format("ssh %s@%s %s", coalesce(local.connection.user, "root"), local.connection.host, (local._private_key_is_path ? format("-i %s", pathexpand(var.connection.private_key)) : "💩"))
 }
