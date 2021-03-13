@@ -114,6 +114,7 @@ resource "null_resource" "create_local_build_dir" {
   }
   triggers = {
     run = local.local_build_dir
+    workspace = terraform.workspace
   }
 }
 
