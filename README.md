@@ -17,6 +17,7 @@ That's it!
   * On macs, this can be installed with `brew install --cask chef-workstation`
 * Terraform >= 0.14
   * [`tfenv` is a great way](https://github.com/tfutils/tfenv)  to install/manage your `terraform` cli
+  * On macs, `brew install tfenv`
 
 ## Example
 
