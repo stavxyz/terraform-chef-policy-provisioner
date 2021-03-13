@@ -1,8 +1,8 @@
 # Chef Policy Provisioner Terraform Module
 
-This module allows you to provision/bootstrap any number of nodes with Chef Policyfiles. **No Chef Server Required!**
+This module allows you to provision/bootstrap any number of nodes with Chef Policyfiles with just a few lines of code, completely automatically. **No Chef Server Required!**
 
-### What you will need
+## What you will need
 
 * A [Policyfile](https://docs.chef.io/policyfile/) which contains your desired machine configuration
 * A machine (or machines) to provision.
@@ -11,7 +11,7 @@ This module allows you to provision/bootstrap any number of nodes with Chef Poli
 
 That's it!
 
-### System Requirements
+## System Requirements
 
 * [Chef Workstation](https://docs.chef.io/workstation/)
   * On macs, this can be installed with `brew install --cask chef-workstation`
@@ -62,7 +62,7 @@ All of the client-side steps are run in an isolated build directory created by t
 
 
 
-## Features
+# Features
 
 - Automatically installs `chef-client` _**of your desired version**_ on your target system(s). This allows you to quickly and easily swap out the version of chef-client being used to converge your nodes. By default, the latest stable version of `chef-client` will be used, but you are also able to explicitly specify your desired version of `chef-client` by supplying a value for the `chef_client_version` variable to this module.
 - Supports the delivery/use of `data_bags`
@@ -71,7 +71,7 @@ All of the client-side steps are run in an isolated build directory created by t
   - By specifying a json file of attributes as variable `attributes_file`
 - No Chef Server Required
 
-## Variables
+# Variables
 
 | **Variable Name** | **Description** | **Default** |
 | ------ | ----- | ----- |
@@ -116,6 +116,6 @@ The following attributes are supported by the `connection` object variable:
 | `bastion_certificate` | optional(string) |
 
 
-## Terraform Registry
+# Terraform Registry
 
 https://registry.terraform.io/modules/stavxyz/policy-provisioner/chef
